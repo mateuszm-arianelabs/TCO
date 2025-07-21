@@ -28,7 +28,7 @@ const client = createWalletClient({
   transport: http(BNB_RPC),
 })
 
-const ARTIFACTS_PATH = "./contracts/exchange-protocol/artifacts/contracts";
+const ARTIFACTS_PATH = "./artifacts/contracts/exchange-protocol/contracts";
 
 // Function to fetch BNB price from CoinGecko
 async function fetchBNBPrice(): Promise<number> {
