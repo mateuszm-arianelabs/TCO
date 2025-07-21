@@ -5,7 +5,14 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "tsx main.ts"
+    "dev:bnb": "tsx src/bnb.ts",
+    "dev:arbitrum": "tsx src/arbitrum.ts",
+    "dev:base": "tsx src/base.ts",
+    "dev:eth": "tsx src/eth.ts",
+    "dev:bnb2": "tsx src/bnb-refactored.ts",
+    "dev:base2": "tsx src/base-refactored.ts",
+    "dev:arbitrum2": "tsx src/arbitrum-refactored.ts",
+    "dev:eth2": "tsx src/eth-refactored.ts"
   },
   "keywords": [],
   "author": "",
