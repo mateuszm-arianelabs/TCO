@@ -28,7 +28,7 @@ const client = createWalletClient({
   transport: http(ARBITRUM_RPC),
 });
 
-const ARTIFACTS_PATH = "./contracts/exchange-protocol/artifacts/contracts";
+const ARTIFACTS_PATH = "./artifacts/contracts/exchange-protocol/contracts";
 
 // Function to fetch ETH price from CoinGecko
 async function fetchETHPrice(): Promise<number> {
