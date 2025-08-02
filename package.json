@@ -5,14 +5,13 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev:bnb": "tsx src/bnb.ts",
-    "dev:arbitrum": "tsx src/arbitrum.ts",
-    "dev:base": "tsx src/base.ts",
-    "dev:eth": "tsx src/eth.ts",
-    "dev:bnb2": "tsx src/bnb-refactored.ts",
-    "dev:base2": "tsx src/base-refactored.ts",
-    "dev:arbitrum2": "tsx src/arbitrum-refactored.ts",
-    "dev:eth2": "tsx src/eth-refactored.ts"
+    "dev:eth": "tsx src/swapTokens/eth.ts",
+    "dev:bnb": "tsx src/swapTokens/bnb-refactored.ts",
+    "dev:bnb:liq": "tsx src/swapTokens/bnb-refactored-add-liq.ts",
+    "dev:base": "tsx src/swapTokens/base-refactored.ts",
+    "dev:arbitrum": "tsx src/swapTokens/arbitrum-refactored.ts",
+    "dev:eth2": "tsx src/eth-refactored.ts",
+    "dev": "tsx src/main.ts"
   },
   "keywords": [],
   "author": "",
@@ -41,6 +40,7 @@
     "viem": "^2.31.6"
   },
   "dependencies": {
-    "dotenv": "^17.0.1"
+    "dotenv": "^17.0.1",
+    "inquirer": "^12.9.0"
   }
 }
