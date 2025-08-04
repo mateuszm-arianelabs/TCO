@@ -28,7 +28,7 @@ const client = createWalletClient({
   transport: http(BASE_RPC),
 });
 
-const ARTIFACTS_PATH = "./artifacts/contracts/exchange-protocol/contracts";
+const ARTIFACTS_PATH = "./contracts/exchange-protocol/artifacts/contracts";
 
 // Function to fetch Base ETH price from CoinGecko
 async function fetchBaseETHPrice(): Promise<number> {
@@ -171,7 +171,7 @@ async function estimateTokenSwap(gasPrice: bigint, ethUsdPrice: number): Promise
   const SWAP_TOKEN_2_ADDRESS = "0x4200000000000000000000000000000000000006";
 
   const amountIn = parseUnits('0.1', 6);
-  const amountOutMin = parseUnits('0.000025', 18);
+  const amountOutMin = parseUnits('0.000025', 18); // TODO: varies depending on the token pair price
   const swapPath = [SWAP_TOKEN_1_ADDRESS, SWAP_TOKEN_2_ADDRESS];
   const deadline = Math.floor(Date.now() / 1000) + 60 * 10;
 

@@ -171,7 +171,7 @@ async function estimateTokenSwap(gasPrice: bigint, ethUsdPrice: number): Promise
   const SWAP_TOKEN_2_ADDRESS = "0x912CE59144191C1204E64559FE8253a0e49E6548";
 
   const amountIn = parseUnits('0.1', 6);
-  const amountOutMin = parseUnits('0.2', 18);
+  const amountOutMin = parseUnits('0.2', 18);  // TODO: varies depending on the token pair price
   const swapPath = [SWAP_TOKEN_1_ADDRESS, SWAP_TOKEN_2_ADDRESS];
   const deadline = Math.floor(Date.now() / 1000) + 60 * 10;
 

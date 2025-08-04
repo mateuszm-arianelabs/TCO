@@ -5,11 +5,11 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev:eth": "tsx src/swapTokens/eth.ts",
-    "dev:bnb": "tsx src/swapTokens/bnb-refactored.ts",
-    "dev:bnb:liq": "tsx src/swapTokens/bnb-refactored-add-liq.ts",
-    "dev:base": "tsx src/swapTokens/base-refactored.ts",
-    "dev:arbitrum": "tsx src/swapTokens/arbitrum-refactored.ts",
+    "dev:eth": "tsx src/swapTokens/legacy/eth.ts",
+    "dev:bnb": "tsx src/swapTokens/legacy/bnb-refactored.ts",
+    "dev:bnb:liq": "tsx src/swapTokens/legacy/bnb-refactored-add-liq.ts",
+    "dev:base": "tsx src/swapTokens/legacy/base-refactored.ts",
+    "dev:arbitrum": "tsx src/swapTokens/legacy/arbitrum-refactored.ts",
     "dev:eth2": "tsx src/eth-refactored.ts",
     "dev": "tsx src/main.ts"
   },

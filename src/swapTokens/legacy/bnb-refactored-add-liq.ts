@@ -5,7 +5,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import "dotenv/config"
-import {benchmark} from "../benchmark";
+import {benchmark} from "../../benchmark";
 
 type Address = `0x${string}`
 
@@ -14,6 +14,8 @@ const BNB_ROUTER_ADDRESS = "0x10ED43C718714eb63d5aA57B78B54704E256024E";
 const BNB_WETH_ADDRESS = "0x4DB5a66E937A9F4473fA95b1cAF1d1E1D62E29EA"
 const BNB_RPC = "https://bsc-rpc.publicnode.com"
 const PRIVATE_KEY = process.env.PRIVATE_KEY as Address;
+console.log("🚀 ~  ~ PRIVATE_KEY: ", PRIVATE_KEY);
+
 const PUBLIC_KEY = "0xACD0BD350355336c5537dE56250Ef01eD61e73eB"
 
 const account = privateKeyToAccount(PRIVATE_KEY)
@@ -29,7 +31,7 @@ const client = createWalletClient({
   transport: http(BNB_RPC),
 })
 
-const ARTIFACTS_PATH = "./artifacts/contracts/exchange-protocol/contracts";
+const ARTIFACTS_PATH = "./contracts/exchange-protocol/artifacts/contracts";
 
 const TOKEN_1_ADDRESS = "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"
 const TOKEN_2_ADDRESS = "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82"
@@ -175,8 +177,8 @@ async function addLiquidity(gasPrice: bigint, bnbUsdPrice: number): Promise<Cost
   const amountInTok1 = parseUnits('0.1', 18);
   const amountInTok2 = parseUnits('0.1', 18);
 
-  const amountOutMinTok1 = parseUnits('0', 18);
-  const amountOutMinTok2 = parseUnits('0', 18);
+  const amountOutMinTok1 = parseUnits('0', 18);  // TODO: varies depending on the token pair price
+  const amountOutMinTok2 = parseUnits('0', 18);  // TODO: varies depending on the token pair price
 
   const callSwapEstimatedGas = await publicClient.estimateContractGas({
     account,
