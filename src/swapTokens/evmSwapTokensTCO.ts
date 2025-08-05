@@ -51,6 +51,14 @@ class EvmSwapTokensTCO implements ISwapTokensTCO {
     console.log(`Cost in USD: $${gasEstimate.costInUSD}`);
   }
 
+  /**
+   * Calculates the cost of an operation given the gas used and the gas price.
+   *
+   * @param {bigint} gasUsed - The amount of gas used for the operation.
+   * @param {bigint} gasPrice - The price of gas in wei.
+   * @return {CostEstimate} An object containing the estimated cost in various formats, including:
+   *                        gas used, gas price, cost in wei, cost in native currency, and cost in USD.
+   */
   private calculateOperationCost(gasUsed: bigint, gasPrice: bigint): CostEstimate {
     const costInWei = gasUsed * gasPrice;
     const costInNativeCurrency = formatUnits(costInWei, this.config.chain.nativeCurrency.decimals);
@@ -65,6 +73,12 @@ class EvmSwapTokensTCO implements ISwapTokensTCO {
     };
   }
 
+  /**
+   * Estimates the cost of deploying the factory contract based on the provided gas price.
+   *
+   * @param {bigint} gasPrice - The gas price to be used for cost estimation in wei.
+   * @return {Promise<CostEstimate>} A promise that resolves to the cost estimation result.
+   */
   private async estimateFactoryDeployment(gasPrice: bigint): Promise<CostEstimate> {
     const factoryContractPath = path.join(this.artifactPath, "PancakeFactory.sol/PancakeFactory.json");
     const factoryContractArtifact = await fs.readFile(factoryContractPath, "utf-8");
@@ -85,6 +99,12 @@ class EvmSwapTokensTCO implements ISwapTokensTCO {
     return cost;
   }
 
+  /**
+   * Estimates the gas cost of creating a new token pair on the PancakeFactory contract.
+   *
+   * @param {bigint} gasPrice - The current gas price used for the estimation.
+   * @return {Promise<CostEstimate>} The estimated cost of the operation, including gas fees.
+   */
   private async estimateCreatePair(gasPrice: bigint): Promise<CostEstimate> {
     const factoryContractPath = path.join(this.artifactPath, "PancakeFactory.sol/PancakeFactory.json");
     const artifact = await fs.readFile(factoryContractPath, "utf-8");
@@ -103,6 +123,12 @@ class EvmSwapTokensTCO implements ISwapTokensTCO {
     return cost;
   }
 
+  /**
+   * Estimates the cost of deploying the router contract.
+   *
+   * @param gasPrice The gas price in wei as a bigint.
+   * @return A promise that resolves to a CostEstimate object representing the estimated cost of deployment.
+   */
   private async estimateRouterDeployment(gasPrice: bigint): Promise<CostEstimate> {
     const routerContractPath = path.join(this.artifactPath, "PancakeRouter.sol/PancakeRouter.json");
     const artifact = await fs.readFile(routerContractPath, "utf-8");
@@ -124,6 +150,13 @@ class EvmSwapTokensTCO implements ISwapTokensTCO {
     return cost;
   }
 
+  /**
+   * Executes the token approval process by interacting with the contract to allow the router
+   * to spend a specific amount of tokens. It calculates the gas cost for the transaction
+   * and logs the cost estimate for the operation.
+   *
+   * @return {Promise<CostEstimate>} The calculated cost estimate of the token approval transaction.
+   */
   private async performTokenApproval(): Promise<CostEstimate> {
     const amountIn = parseUnits('0.1', this.config.operationToken1.decimals);
 
@@ -144,6 +177,12 @@ class EvmSwapTokensTCO implements ISwapTokensTCO {
     return cost;
   }
 
+  /**
+   * Estimates the gas cost required to execute a token swap using a decentralized exchange's router contract.
+   *
+   * @param gasPrice The price of gas in wei, represented as a bigint.
+   * @return A Promise that resolves to a `CostEstimate` object containing the estimated cost of the operation.
+   */
   private async estimateTokenSwap(gasPrice: bigint): Promise<CostEstimate> {
     const routerContractPath = path.join(this.artifactPath, "PancakeRouter.sol/PancakeRouter.json");
     const artifact = await fs.readFile(routerContractPath, "utf-8");
@@ -168,6 +207,14 @@ class EvmSwapTokensTCO implements ISwapTokensTCO {
     return cost;
   }
 
+  /**
+   * Executes the token swap flow on the configured blockchain by estimating all the required operations,
+   * including gas price retrieval, factory deployment, token creation, router setup, token approval, and the swap itself.
+   * It logs a detailed cost breakdown in terms of gas usage, native token cost, and USD equivalent.
+   * Handles potential errors during the estimation process and logs appropriate error messages.
+   *
+   * @return {Promise<void>} A promise that resolves when the token swap estimation has been completed and logs the cost overview, or rejects if the process encounters an error.
+   */
   async executeTokenSwapFlowTCO(): Promise<void> {
     console.log(`🔍 Estimating swap operations on ${this.config.chain.name}...\n`);
 

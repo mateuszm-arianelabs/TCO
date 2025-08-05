@@ -52,6 +52,18 @@ class EvmAddLiquidityTCO implements IAddLiquidityTCO {
     console.log(`Cost in USD: $${gasEstimate.costInUSD}`);
   }
 
+  /**
+   * Calculates the operation cost based on gas used and gas price.
+   *
+   * @param {bigint} gasUsed - The amount of gas used in the operation.
+   * @param {bigint} gasPrice - The price of gas in wei.
+   * @return {CostEstimate} An object containing the detailed cost estimate, including:
+   *                        - gasUsed: The gas used.
+   *                        - gasPrice: The gas price.
+   *                        - costInWei: The total cost in wei.
+   *                        - costInNativeCurrency: The total cost in the chain's native currency.
+   *                        - costInUSD: The estimated cost in USD.
+   */
   private calculateOperationCost(gasUsed: bigint, gasPrice: bigint): CostEstimate {
     const costInWei = gasUsed * gasPrice;
     const costInNativeCurrency = formatUnits(costInWei, this.config.chain.nativeCurrency.decimals);
@@ -66,6 +78,12 @@ class EvmAddLiquidityTCO implements IAddLiquidityTCO {
     };
   }
 
+  /**
+   * Estimates the deployment cost for the factory contract based on the provided gas price.
+   *
+   * @param gasPrice The gas price to be used for estimating the cost, provided as a bigint.
+   * @return A promise that resolves to a CostEstimate object containing the estimated deployment cost.
+   */
   private async estimateFactoryDeployment(gasPrice: bigint): Promise<CostEstimate> {
     const factoryContractPath = path.join(this.artifactPath, "PancakeFactory.sol/PancakeFactory.json");
     const factoryContractArtifact = await fs.readFile(factoryContractPath, "utf-8");
@@ -86,6 +104,14 @@ class EvmAddLiquidityTCO implements IAddLiquidityTCO {
     return cost;
   }
 
+  /**
+   * Estimates the cost to create a trading pair for two tokens on the factory contract.
+   *
+   * @param {bigint} gasPrice - The gas price to be used for the transaction estimation.
+   * @param {TokenConfig} token1 - Configuration object for the first token, including its address.
+   * @param {TokenConfig} token2 - Configuration object for the second token, including its address.
+   * @return {Promise<CostEstimate>} A promise that resolves to an object containing the estimated cost of the operation.
+   */
   private async estimateCreatePair(gasPrice: bigint, token1: TokenConfig, token2: TokenConfig): Promise<CostEstimate> {
     const factoryContractPath = path.join(this.artifactPath, "PancakeFactory.sol/PancakeFactory.json");
     const artifact = await fs.readFile(factoryContractPath, "utf-8");
@@ -104,6 +130,12 @@ class EvmAddLiquidityTCO implements IAddLiquidityTCO {
     return cost;
   }
 
+  /**
+   * Estimates the deployment cost of the router contract.
+   *
+   * @param gasPrice The gas price to use for the cost estimation, provided as a bigint.
+   * @return A Promise that resolves to the estimated cost of deploying the router contract as a CostEstimate object.
+   */
   private async estimateRouterDeployment(gasPrice: bigint): Promise<CostEstimate> {
     const routerContractPath = path.join(this.artifactPath, "PancakeRouter.sol/PancakeRouter.json");
     const artifact = await fs.readFile(routerContractPath, "utf-8");
@@ -125,6 +157,12 @@ class EvmAddLiquidityTCO implements IAddLiquidityTCO {
     return cost;
   }
 
+  /**
+   * Approves a specified token for spending by the configured router address.
+   *
+   * @param {TokenConfig} token - The configuration object for the token to approve, including its address and decimals.
+   * @return {Promise<CostEstimate>} A promise that resolves to the cost estimate of the token approval operation.
+   */
   private async performTokenApproval(token: TokenConfig): Promise<CostEstimate> {
     const amountIn = parseUnits('0.1', token.decimals);
 
@@ -145,6 +183,14 @@ class EvmAddLiquidityTCO implements IAddLiquidityTCO {
     return cost;
   }
 
+  /**
+   * Estimates the gas and associated cost required to add liquidity for two tokens using a decentralized exchange router contract.
+   *
+   * @param gasPrice The current gas price as a `bigint`.
+   * @param token1 The configuration for the first token, including its address and decimals.
+   * @param token2 The configuration for the second token, including its address and decimals.
+   * @return A promise that resolves to a `CostEstimate` object containing details about the estimated operation cost.
+   */
   private async estimateAddLiquidity(gasPrice: bigint, token1: TokenConfig, token2: TokenConfig): Promise<CostEstimate> {
     const routerContractPath = path.join(this.artifactPath, "PancakeRouter.sol/PancakeRouter.json");
     const artifact = await fs.readFile(routerContractPath, "utf-8");
@@ -179,6 +225,13 @@ class EvmAddLiquidityTCO implements IAddLiquidityTCO {
     return cost;
   }
 
+  /**
+   * Executes the process of estimating and performing the required steps to add liquidity in a specified blockchain environment.
+   * This includes operations such as estimating gas costs for factory deployment, pair creation, router deployment, token approvals,
+   * and liquidity addition while calculating total gas usage and cost in both native currency and USD.
+   *
+   * @return {Promise<void>} A promise that resolves once all the liquidity addition steps and calculations are executed.
+   */
   async executeAddLiquidityFlowTCO(): Promise<void> {
     console.log(`🔍 Estimating adding liquidity operations on ${this.config.chain.name}...\n`);
 
@@ -192,20 +245,6 @@ class EvmAddLiquidityTCO implements IAddLiquidityTCO {
       const routerDeployment = await this.estimateRouterDeployment(gasPrice);
       const tokenApproval1 = await this.performTokenApproval(this.config.operationToken1);
       const tokenApproval2 = await this.performTokenApproval(this.config.operationToken2);
-      const balance1 = await this.publicClient.readContract({
-        address: this.config.operationToken1.address,
-        abi: erc20Abi,
-        functionName: "balanceOf",
-        args: [this.account.address],
-      });
-      console.log("🚀 ~ executeAddLiquidityFlowTCO ~ balance1: ", balance1);
-      const balance2 = await this.publicClient.readContract({
-        address: this.config.operationToken2.address,
-        abi: erc20Abi,
-        functionName: "balanceOf",
-        args: [this.account.address],
-      });
-      console.log("🚀 ~ executeAddLiquidityFlowTCO ~ balance2: ", balance2);
 
       const addLiquidity = await this.estimateAddLiquidity(gasPrice, this.config.operationToken1, this.config.operationToken2);
 
