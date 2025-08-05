@@ -1,7 +1,7 @@
 import { ChainConfig } from "../types";
 import TokenPriceService from "../utils/tokenPriceService";
-import EvmAddLiquidityTCO from "./evmAddLiquidityTCO";
 import { ChainNames } from "../types";
+import EvmAddLiquidityTCO from "./evmAddLiquidityTCO";
 
 class AddLiquidityTCOFactory {
   static async createAddLiquidityTCO(config: ChainConfig, privateKey: `0x${string}`, publicKey: `0x${string}`, artifactsPath: string): Promise<IAddLiquidityTCO> {

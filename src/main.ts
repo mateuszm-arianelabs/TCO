@@ -4,6 +4,7 @@ import "dotenv/config";
 import SwapTCOFactory from "./swapTokens/swapTCOFactory";
 import AddLiquidityTCOFactory from "./addLiquidity/AddLiquidityTCOFactory";
 import { ActionType, ChainNames } from "./types";
+import { benchmark } from "./utils/benchmark";
 
 const privateKey = process.env.PRIVATE_KEY as `0x${string}`;
 const publicKey: `0x${string}` = "0xACD0BD350355336c5537dE56250Ef01eD61e73eB";
@@ -48,11 +49,12 @@ async function showMenu() {
 
     if (action === ActionType.swapTokens) {
       const swapTCOImpl = await SwapTCOFactory.createSwapTCO(config, privateKey, publicKey, artifactsPath);
-      await swapTCOImpl.executeTokenSwapFlowTCO();
+      await benchmark(() => swapTCOImpl.executeTokenSwapFlowTCO());
     } else if (action === ActionType.addLiquidity) {
       const addLiquidityTCOImpl = await AddLiquidityTCOFactory.createAddLiquidityTCO(config, privateKey, publicKey, artifactsPath);
-      await addLiquidityTCOImpl.executeAddLiquidityFlowTCO();
+      await benchmark(() => addLiquidityTCOImpl.executeAddLiquidityFlowTCO());
     }
+
 
   } catch (error) {
     console.error("❌ An error occurred:", error);
