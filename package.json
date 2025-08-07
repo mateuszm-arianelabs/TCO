@@ -11,8 +11,7 @@
     "dev:base": "tsx src/swapTokens/legacy/base-refactored.ts",
     "dev:arbitrum": "tsx src/swapTokens/legacy/arbitrum-refactored.ts",
     "dev:eth2": "tsx src/eth-refactored.ts",
-    "dev": "tsx src/main.ts",
-    "dev:arbitrum:mint": "tsx src/nft/mint.ts"
+    "dev": "tsx src/main.ts"
   },
   "keywords": [],
   "author": "",
