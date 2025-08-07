@@ -44,7 +44,7 @@ export const CHAINS: Record<string, ChainConfig> = {
       decimals: 6
     },
     operationToken2: {
-      address: "0x4200000000000000000000000000000000000006",
+      address: "0x3055913c90Fcc1A6CE9a358911721eEb942013A1",
       decimals: 18
     },
     newToken1: {
