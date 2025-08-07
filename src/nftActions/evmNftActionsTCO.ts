@@ -1,4 +1,4 @@
-import { ChainConfig } from "../types";
+import { ChainConfig, CostEstimate } from "../types";
 import {
   createPublicClient,
   http,
@@ -15,7 +15,9 @@ import { logCostEstimate } from '../utils/logCostEstimate';
 class EvmNftActionsTCO implements INftActionsTCO {
   private publicClient: PublicClient;
   private client: WalletClient;
-  private account: Account;
+  private readonly account: Account;
+  private readonly nativeCurrencySymbol: string;
+
 
   constructor(
     private config: ChainConfig,
@@ -35,9 +37,33 @@ class EvmNftActionsTCO implements INftActionsTCO {
       chain: config.chain,
       transport: http(config.rpc),
     });
+
+    this.nativeCurrencySymbol = config.chain.nativeCurrency.symbol;
   }
 
-  async executeMintFlowTCO(): Promise<void> {
+  /**
+   * Calculates the cost of an operation given the gas used and the gas price.
+   *
+   * @param {bigint} gasUsed - The amount of gas used for the operation.
+   * @param {bigint} gasPrice - The price of gas in wei.
+   * @return {CostEstimate} An object containing the estimated cost in various formats, including:
+   *                        gas used, gas price, cost in wei, cost in native currency, and cost in USD.
+   */
+  private calculateOperationCost(gasUsed: bigint, gasPrice: bigint): CostEstimate {
+    const costInWei = gasUsed * gasPrice;
+    const costInNativeCurrency = formatUnits(costInWei, this.config.chain.nativeCurrency.decimals);
+    const costInUSD = (parseFloat(costInNativeCurrency) * this.nativeTokenUsdPrice).toFixed(6);
+
+    return {
+      gasUsed,
+      gasPrice,
+      costInWei,
+      costInNativeCurrency,
+      costInUSD
+    };
+  }
+
+  private async estimateMint(gasPrice: bigint): Promise<CostEstimate> {
     try {
       const estimatedGas = await this.publicClient.estimateContractGas({
         address: this.nftAddress,
@@ -46,28 +72,22 @@ class EvmNftActionsTCO implements INftActionsTCO {
         args: [this.publicKey],
         account: this.publicKey,
       });
-      const gasPrice = await this.publicClient.getGasPrice();
-      const costInWei = estimatedGas * gasPrice;
-      const costInNativeCurrency = formatUnits(costInWei, this.config.chain.nativeCurrency.decimals);
-      const costInUSD = (parseFloat(costInNativeCurrency) * this.nativeTokenUsdPrice).toFixed(6);
-
-      const estimate = {
-        gasUsed: estimatedGas,
-        gasPrice,
-        costInWei,
-        costInNativeCurrency,
-        costInUSD
-      };
-
-      logCostEstimate("Mint NFT", estimate, this.config.chain.nativeCurrency.symbol);
-
+      const cost = this.calculateOperationCost(estimatedGas, gasPrice);
+      logCostEstimate("Mint NFT", cost, this.nativeCurrencySymbol);
+      return cost;
     } catch (error) {
       console.error("Estimation failed (mint):", error);
+      return {
+        gasUsed: 0n,
+        gasPrice,
+        costInWei: 0n,
+        costInNativeCurrency: '0',
+        costInUSD: '0.00'
+      };
     }
   }
 
-  async executeBurnFlowTCO(): Promise<void> {
-    const tokenId = 0n;
+  private async estimateBurn(gasPrice: bigint, tokenId: bigint): Promise<CostEstimate> {
     try {
       const estimatedGas = await this.publicClient.estimateContractGas({
         address: this.nftAddress,
@@ -76,33 +96,23 @@ class EvmNftActionsTCO implements INftActionsTCO {
         args: [tokenId],
         account: this.publicKey,
       });
-      const gasPrice = await this.publicClient.getGasPrice();
-      const costInWei = estimatedGas * gasPrice;
-      const costInNativeCurrency = formatUnits(costInWei, this.config.chain.nativeCurrency.decimals);
-      const costInUSD = (parseFloat(costInNativeCurrency) * this.nativeTokenUsdPrice).toFixed(6);
-
-      const estimate = {
-        gasUsed: estimatedGas,
-        gasPrice,
-        costInWei,
-        costInNativeCurrency,
-        costInUSD
-      };
-
-      logCostEstimate("Burn NFT", estimate, this.config.chain.nativeCurrency.symbol);
-
+      const cost = this.calculateOperationCost(estimatedGas, gasPrice);
+      logCostEstimate("Burn NFT", cost, this.nativeCurrencySymbol);
+      return cost;
     } catch (error) {
       console.error("Estimation failed (burn):", error);
+      return {
+        gasUsed: 0n,
+        gasPrice,
+        costInWei: 0n,
+        costInNativeCurrency: '0',
+        costInUSD: '0.00'
+      };
     }
   }
 
-  async executeAirdropFlowTCO(): Promise<void> {
-    const recipients = [
-      this.publicKey,
-      // TODO: other addressess?
-    ];
+  private async estimateAirdrop(gasPrice: bigint, recipients: `0x${string}`[]): Promise<CostEstimate> {
     let totalGas = 0n;
-    const gasPrice = await this.publicClient.getGasPrice();
     for (const recipient of recipients) {
       try {
         const estimatedGas = await this.publicClient.estimateContractGas({
@@ -117,10 +127,43 @@ class EvmNftActionsTCO implements INftActionsTCO {
         console.error(`Estimation failed (airdrop for ${recipient}):`, error);
       }
     }
-    const totalCost = totalGas * gasPrice;
-    console.log(`Total estimated gas for airdrop: ${totalGas}`);
-    console.log(`Cost in native: ${formatUnits(totalCost, this.config.chain.nativeCurrency.decimals)}`);
+    const cost = this.calculateOperationCost(totalGas, gasPrice);
+    logCostEstimate("Airdrop NFT", cost, this.nativeCurrencySymbol);
+    return cost;
   }
+
+  /**
+   * Estimates gas and costs for mint, burn, and airdrop, then logs a cost overview.
+   */
+  async executeNftActionsFlowTCO(): Promise<void> {
+    console.log(`🔍 Estimating NFT lifecycle operations (mint, burn, airdrop) on ${this.config.chain.name}...\n`);
+    const gasPrice = await this.publicClient.getGasPrice();
+    console.log(`Gas price: ${formatUnits(gasPrice, 9)} Gwei`);
+    console.log(`USD per native token: $${this.nativeTokenUsdPrice.toFixed(2)}`);
+
+    try {
+      const mintCost = await this.estimateMint(gasPrice);
+      const burnCost = await this.estimateBurn(gasPrice, 0n); // this is only estimation so we can safely pass 0n as an argument 
+
+      const recipients = Array(10).fill(this.publicKey); // TODO: how many recipments? 
+      const airdropCost = await this.estimateAirdrop(gasPrice, recipients);
+
+      const totalGas = mintCost.gasUsed + burnCost.gasUsed + airdropCost.gasUsed;
+      const totalWei = mintCost.costInWei + burnCost.costInWei + airdropCost.costInWei;
+      const totalNative = formatUnits(totalWei, this.config.chain.nativeCurrency.decimals);
+      const totalUSD = (parseFloat(totalNative) * this.nativeTokenUsdPrice).toFixed(6);
+
+      console.log(`\n=== TOTAL COST OVERVIEW ===`);
+      console.log(`Total gas: ${totalGas.toString()}`);
+      console.log(`Total in ${this.nativeCurrencySymbol}: ${totalNative}`);
+      console.log(`Total in USD: $${totalUSD}`);
+
+    } catch (err) {
+      console.error("❌ Estimation failed:", err);
+    }
+  }
+
 }
+
 
 export default EvmNftActionsTCO;

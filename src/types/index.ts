@@ -39,7 +39,5 @@ export enum ChainNames {
 export enum ActionType {
   addLiquidity = "Add Liquidity",
   swapTokens = "Swap Tokens",
-  mintNFT = "Mint NFT",
-  burnNFT = "Burn NFT",
-  airdropNFT = "Airdrop NFT",
+  nftActions = "NFT Actions"
 }

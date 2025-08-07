@@ -1,17 +1,17 @@
+import "dotenv/config";
 import inquirer from 'inquirer';
 import { CHAINS } from "./config/chains";
-import "dotenv/config";
 import SwapTCOFactory from "./swapTokens/swapTCOFactory";
 import AddLiquidityTCOFactory from "./addLiquidity/AddLiquidityTCOFactory";
 import NftTCOFactory from "./nftActions/nftTCOFactory";
-import nftAbi from "../contracts/exchange-protocol/data/abi/contracts/CustomERC721/MyNFT.json";
+import erc721Abi from "../contracts/exchange-protocol/data/abi/contracts/CustomERC721/MyNFT.json";
 import { ActionType, ChainNames } from "./types";
 import { benchmark } from "./utils/benchmark";
 
 const privateKey = process.env.PRIVATE_KEY as `0x${string}`;
 const publicKey: `0x${string}` = "0xACD0BD350355336c5537dE56250Ef01eD61e73eB";
 const artifactsPath = "./contracts/exchange-protocol/artifacts/contracts";
-const nftAddress = process.env.ERC721_CONTRACT_ADDRESS as `0x${string}`;
+const erc721ContractAddress = process.env.ERC721_CONTRACT_ADDRESS as `0x${string}`;
 
 async function showMenu() {
   console.clear();
@@ -19,6 +19,11 @@ async function showMenu() {
 
   if (!privateKey) {
     console.error("❌ Missing PRIVATE_KEY in environment variables");
+    return;
+  }
+
+  if (!erc721ContractAddress) {
+    console.error("❌ Missing ERC721_CONTRACT_ADDRESS in environment variables");
     return;
   }
 
@@ -49,51 +54,37 @@ async function showMenu() {
         choices: [
           ActionType.addLiquidity,
           ActionType.swapTokens,
-          ActionType.mintNFT,
-          ActionType.burnNFT,
-          ActionType.airdropNFT,
+          ActionType.nftActions,
         ],
       },
     ]);
 
-    let nftTCOImpl: any;
-    if (
-      action === ActionType.mintNFT ||
-      action === ActionType.burnNFT ||
-      action === ActionType.airdropNFT
-    ) {
-      nftTCOImpl = await NftTCOFactory.createNftActionsTCO(
+    // NFT 
+    if (action === ActionType.nftActions) {
+      const nftTCOImpl = await NftTCOFactory.createNftActionsTCO(
         config,
         privateKey,
         publicKey,
-        nftAbi,
-        nftAddress
+        erc721Abi,
+        erc721ContractAddress
       );
+      await benchmark(() => nftTCOImpl.executeNftActionsFlowTCO());
+      return
     }
 
+    // Swap
     if (action === ActionType.swapTokens) {
       const swapTCOImpl = await SwapTCOFactory.createSwapTCO(config, privateKey, publicKey, artifactsPath);
       await benchmark(() => swapTCOImpl.executeTokenSwapFlowTCO());
-    } else if (action === ActionType.addLiquidity) {
-      const addLiquidityTCOImpl = await AddLiquidityTCOFactory.createAddLiquidityTCO(config, privateKey, publicKey, artifactsPath);
-      await benchmark(() => addLiquidityTCOImpl.executeAddLiquidityFlowTCO());
-    } else if (action === ActionType.mintNFT) {
-      await benchmark(() => nftTCOImpl.executeMintFlowTCO());
-    } else if (action === ActionType.burnNFT) {
-      const { tokenId } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'tokenId',
-          message: 'Enter the token ID to burn:',
-          validate: (value) => /^\d+$/.test(value) || "Please enter a valid numeric token ID!",
-        },
-      ]);
-      await benchmark(() => nftTCOImpl.executeBurnFlowTCO(BigInt(tokenId)));
-    } else if (action === ActionType.airdropNFT) {
-      await benchmark(() => nftTCOImpl.executeAirdropFlowTCO());
+      return
     }
 
-
+    // Add Liquidity
+    if (action === ActionType.addLiquidity) {
+      const addLiquidityTCOImpl = await AddLiquidityTCOFactory.createAddLiquidityTCO(config, privateKey, publicKey, artifactsPath);
+      await benchmark(() => addLiquidityTCOImpl.executeAddLiquidityFlowTCO());
+      return;
+    }
   } catch (error) {
     console.error("❌ An error occurred:", error);
   }
