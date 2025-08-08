@@ -39,4 +39,5 @@ export enum ChainNames {
 export enum ActionType {
   addLiquidity = "Add Liquidity",
   swapTokens = "Swap Tokens",
+  nftActions = "NFT Actions"
 }

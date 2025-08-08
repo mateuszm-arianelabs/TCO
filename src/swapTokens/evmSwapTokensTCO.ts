@@ -14,6 +14,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { encodeDeployData } from "viem/utils";
 import { CostEstimate } from "../types";
+import { logCostEstimate } from '../utils/logCostEstimate';
 
 class EvmSwapTokensTCO implements ISwapTokensTCO {
   private publicClient: PublicClient;
@@ -41,14 +42,6 @@ class EvmSwapTokensTCO implements ISwapTokensTCO {
     });
 
     this.nativeCurrencySymbol = config.chain.nativeCurrency.symbol;
-  }
-
-  private logCostEstimate(operation: string, gasEstimate: CostEstimate): void {
-    console.log(`\n=== ${operation} ===`);
-    console.log(`Gas used: ${gasEstimate.gasUsed.toString()}`);
-    console.log(`Gas price: ${formatUnits(gasEstimate.gasPrice, 9)} Gwei`);  // this works fine as all the used chains have native tokens with 18 decimals
-    console.log(`Cost in ${this.nativeCurrencySymbol}: ${gasEstimate.costInNativeCurrency}`);
-    console.log(`Cost in USD: $${gasEstimate.costInUSD}`);
   }
 
   /**
@@ -95,7 +88,7 @@ class EvmSwapTokensTCO implements ISwapTokensTCO {
     });
 
     const cost = this.calculateOperationCost(estimatedGas, gasPrice);
-    this.logCostEstimate("Factory Deployment", cost);
+    logCostEstimate("Factory Deployment", cost, this.nativeCurrencySymbol);
     return cost;
   }
 
@@ -119,7 +112,7 @@ class EvmSwapTokensTCO implements ISwapTokensTCO {
     });
 
     const cost = this.calculateOperationCost(estimatedGas, gasPrice);
-    this.logCostEstimate("Create Pair", cost);
+    logCostEstimate("Create Pair", cost, this.nativeCurrencySymbol);
     return cost;
   }
 
@@ -146,7 +139,7 @@ class EvmSwapTokensTCO implements ISwapTokensTCO {
     });
 
     const cost = this.calculateOperationCost(estimatedGas, gasPrice);
-    this.logCostEstimate("Router Deployment", cost);
+    logCostEstimate("Router Deployment", cost, this.nativeCurrencySymbol);
     return cost;
   }
 
@@ -173,7 +166,7 @@ class EvmSwapTokensTCO implements ISwapTokensTCO {
     const gasPrice = receipt.effectiveGasPrice as bigint;
     const cost = this.calculateOperationCost(receipt.gasUsed, gasPrice);
 
-    this.logCostEstimate("Token Approval", cost);
+    logCostEstimate("Token Approval", cost, this.nativeCurrencySymbol);
     return cost;
   }
 
@@ -188,7 +181,7 @@ class EvmSwapTokensTCO implements ISwapTokensTCO {
     const artifact = await fs.readFile(routerContractPath, "utf-8");
     const routerContract = JSON.parse(artifact);
 
-    const amountIn = parseUnits('0.1',  this.config.operationToken1.decimals);
+    const amountIn = parseUnits('0.1', this.config.operationToken1.decimals);
     const amountOutMin = 0; // setting minimal out amount to 0 to fix an issue with fluctuating prices causing errors
 
     const pathTokens = [this.config.operationToken1.address, this.config.operationToken2.address];
@@ -203,7 +196,7 @@ class EvmSwapTokensTCO implements ISwapTokensTCO {
     });
 
     const cost = this.calculateOperationCost(estimatedGas, gasPrice);
-    this.logCostEstimate("Token Swap", cost);
+    logCostEstimate("Token Swap", cost, this.nativeCurrencySymbol);
     return cost;
   }
 
