@@ -1,4 +1,4 @@
-import { arbitrum, base, bsc, mainnet } from "viem/chains";
+import { arbitrum, base, bsc, mainnet, hederaTestnet } from "viem/chains";
 import { ChainConfig, ChainNames } from "../types";
 
 export const CHAINS: Record<string, ChainConfig> = {
@@ -108,6 +108,33 @@ export const CHAINS: Record<string, ChainConfig> = {
     newToken2: {
       address: "0x4a220E6096B25EADb88358cb44068A3248254675",
       decimals: 18
+    }
+  },
+  hedera: {
+    chain: hederaTestnet,
+    name: ChainNames.hedera,
+    rpc: "https://testnet.hashio.io/api",
+    factory: "0x...placeholder",
+    router: "0x...placeholder",
+    weth: {
+      address: "0x...placeholder",
+      decimals: 8
+    },
+    operationToken1: {
+      address: "0x...placeholder",
+      decimals: 8
+    },
+    operationToken2: {
+      address: "0x...placeholder",
+      decimals: 8
+    },
+    newToken1: {
+      address: "0x...placeholder",
+      decimals: 8
+    },
+    newToken2: {
+      address: "0x...placeholder",
+      decimals: 8
     }
   }
 }

@@ -4,14 +4,9 @@ import { CHAINS } from "./config/chains";
 import SwapTCOFactory from "./swapTokens/swapTCOFactory";
 import AddLiquidityTCOFactory from "./addLiquidity/AddLiquidityTCOFactory";
 import NftTCOFactory from "./nftActions/nftTCOFactory";
-import erc721Abi from "../contracts/exchange-protocol/data/abi/contracts/CustomERC721/MyNFT.json";
 import { ActionType, ChainNames } from "./types";
 import { benchmark } from "./utils/benchmark";
-
-const privateKey = process.env.PRIVATE_KEY as `0x${string}`;
-const publicKey: `0x${string}` = "0xACD0BD350355336c5537dE56250Ef01eD61e73eB";
-const artifactsPath = "./contracts/exchange-protocol/artifacts/contracts";
-const erc721ContractAddress = process.env.ERC721_CONTRACT_ADDRESS as `0x${string}`;
+import { artifactsPath, erc721HederaContractAddress, erc721SepoliaContractAddress, privateKey, publicKey } from './constants';
 
 async function showMenu() {
   console.clear();
@@ -22,8 +17,13 @@ async function showMenu() {
     return;
   }
 
-  if (!erc721ContractAddress) {
-    console.error("❌ Missing ERC721_CONTRACT_ADDRESS in environment variables");
+  if (!erc721SepoliaContractAddress) {
+    console.error("❌ Missing ERC721_SEPOLIA_CONTRACT_ADDRESS in environment variables");
+    return;
+  }
+
+  if (!erc721HederaContractAddress) {
+    console.error("❌ Missing ERC721_HEDERA_CONTRACT_ADDRESS in environment variables");
     return;
   }
 
@@ -33,7 +33,7 @@ async function showMenu() {
         type: 'list',
         name: 'blockchain',
         message: 'Select a blockchain:',
-        choices: [ChainNames.bsc, ChainNames.base, ChainNames.arbitrum, ChainNames.ethereum],
+        choices: [ChainNames.bsc, ChainNames.base, ChainNames.arbitrum, ChainNames.ethereum, ChainNames.hedera],
       },
     ]);
 
@@ -65,8 +65,6 @@ async function showMenu() {
         config,
         privateKey,
         publicKey,
-        erc721Abi,
-        erc721ContractAddress
       );
       await benchmark(() => nftTCOImpl.executeNftActionsFlowTCO());
       return

@@ -13,6 +13,12 @@ class TokenPriceService {
     const data = await response.json();
     return data.binancecoin.usd;
   }
+
+  static async fetchHbarPrice(): Promise<number> {
+    const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=hedera-hashgraph&vs_currencies=usd');
+    const data = await response.json();
+    return data['hedera-hashgraph'].usd;
+  }
 }
 
 export default TokenPriceService;

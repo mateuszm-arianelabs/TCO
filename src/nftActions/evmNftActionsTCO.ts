@@ -18,7 +18,6 @@ class EvmNftActionsTCO implements INftActionsTCO {
   private readonly account: Account;
   private readonly nativeCurrencySymbol: string;
 
-
   constructor(
     private config: ChainConfig,
     private privateKey: `0x${string}`,
@@ -111,22 +110,29 @@ class EvmNftActionsTCO implements INftActionsTCO {
     }
   }
 
-  private async estimateAirdrop(gasPrice: bigint, recipients: `0x${string}`[]): Promise<CostEstimate> {
-    let totalGas = 0n;
-    for (const recipient of recipients) {
-      try {
-        const estimatedGas = await this.publicClient.estimateContractGas({
-          address: this.nftAddress,
-          abi: this.nftAbi,
-          functionName: "safeMint",
-          args: [recipient],
-          account: this.publicKey,
-        });
-        totalGas += estimatedGas;
-      } catch (error) {
-        console.error(`Estimation failed (airdrop for ${recipient}):`, error);
-      }
-    }
+  private async estimateAirdrop(
+    gasPrice: bigint,
+    recipients: `0x${string}`[]
+  ): Promise<CostEstimate> {
+    const gasEstimations = await Promise.all(
+      recipients.map(async (recipient, i) => {
+        const tokenId = BigInt(i);
+        try {
+          return await this.publicClient.estimateContractGas({
+            address: this.nftAddress,
+            abi: this.nftAbi,
+            functionName: "safeMint",
+            args: [recipient],
+            account: this.publicKey,
+          });
+        } catch (error) {
+          console.error(`Estimation failed (airdrop for ${recipient}, tokenId=${tokenId}):`, error);
+          return 0n as bigint;
+        }
+      })
+    );
+
+    const totalGas = gasEstimations.reduce((acc, gas) => acc + gas, 0n);
     const cost = this.calculateOperationCost(totalGas, gasPrice);
     logCostEstimate("Airdrop NFT", cost, this.nativeCurrencySymbol);
     return cost;
@@ -145,7 +151,7 @@ class EvmNftActionsTCO implements INftActionsTCO {
       const mintCost = await this.estimateMint(gasPrice);
       const burnCost = await this.estimateBurn(gasPrice, 0n); // this is only estimation so we can safely pass 0n as an argument 
 
-      const recipients = Array(10).fill(this.publicKey); // TODO: how many recipments? 
+      const recipients = Array(10).fill(this.publicKey);
       const airdropCost = await this.estimateAirdrop(gasPrice, recipients);
 
       const totalGas = mintCost.gasUsed + burnCost.gasUsed + airdropCost.gasUsed;
