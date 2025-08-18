@@ -5,7 +5,7 @@ import { INftActionsTCO } from './INftActionsTCO';
 import erc721Abi from './abi/erc721.json'
 
 const erc721SepoliaContractAddress = process.env.ERC721_SEPOLIA_CONTRACT_ADDRESS as `0x${string}`;
-const erc721HederaContractAddress = process.env.ERC721_CONTRACT_ADDRESS as `0x${string}`;
+const erc721HederaContractAddress = process.env.ERC721_HEDERA_CONTRACT_ADDRESS as `0x${string}`;
 
 class NftTCOFactory {
   static async createNftActionsTCO(
