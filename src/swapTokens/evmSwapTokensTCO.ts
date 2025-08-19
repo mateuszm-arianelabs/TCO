@@ -1,0 +1,250 @@
+import { ChainConfig } from "../types";
+import {
+  Account,
+  createPublicClient,
+  createWalletClient,
+  erc20Abi,
+  formatUnits,
+  http,
+  parseUnits,
+  PublicClient, WalletClient
+} from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import path from "node:path";
+import fs from "node:fs/promises";
+import { encodeDeployData } from "viem/utils";
+import { CostEstimate } from "../types";
+import { logCostEstimate } from '../utils/logCostEstimate';
+
+class EvmSwapTokensTCO implements ISwapTokensTCO {
+  private publicClient: PublicClient;
+  private client: WalletClient;
+  private readonly account: Account;
+  private readonly nativeCurrencySymbol: string;
+
+  constructor(
+    private config: ChainConfig,
+    private privateKey: `0x${string}`,
+    private publicKey: `0x${string}`,
+    private artifactPath: string,
+    private nativeCurrencyUsdPrice: number
+  ) {
+    this.account = privateKeyToAccount(this.privateKey);
+    this.publicClient = createPublicClient({
+      chain: config.chain,
+      transport: http(config.rpc),
+    });
+
+    this.client = createWalletClient({
+      account: this.account,
+      chain: config.chain,
+      transport: http(config.rpc),
+    });
+
+    this.nativeCurrencySymbol = config.chain.nativeCurrency.symbol;
+  }
+
+  /**
+   * Calculates the cost of an operation given the gas used and the gas price.
+   *
+   * @param {bigint} gasUsed - The amount of gas used for the operation.
+   * @param {bigint} gasPrice - The price of gas in wei.
+   * @return {CostEstimate} An object containing the estimated cost in various formats, including:
+   *                        gas used, gas price, cost in wei, cost in native currency, and cost in USD.
+   */
+  private calculateOperationCost(gasUsed: bigint, gasPrice: bigint): CostEstimate {
+    const costInWei = gasUsed * gasPrice;
+    const costInNativeCurrency = formatUnits(costInWei, this.config.chain.nativeCurrency.decimals);
+    const costInUSD = (parseFloat(costInNativeCurrency) * this.nativeCurrencyUsdPrice).toFixed(6);
+
+    return {
+      gasUsed,
+      gasPrice,
+      costInWei,
+      costInNativeCurrency,
+      costInUSD
+    };
+  }
+
+  /**
+   * Estimates the cost of deploying the factory contract based on the provided gas price.
+   *
+   * @param {bigint} gasPrice - The gas price to be used for cost estimation in wei.
+   * @return {Promise<CostEstimate>} A promise that resolves to the cost estimation result.
+   */
+  private async estimateFactoryDeployment(gasPrice: bigint): Promise<CostEstimate> {
+    const factoryContractPath = path.join(this.artifactPath, "PancakeFactory.sol/PancakeFactory.json");
+    const factoryContractArtifact = await fs.readFile(factoryContractPath, "utf-8");
+    const factoryContract = JSON.parse(factoryContractArtifact);
+    const deployData = encodeDeployData({
+      abi: factoryContract.abi,
+      bytecode: factoryContract.bytecode,
+      args: [this.publicKey],
+    });
+
+    const estimatedGas = await this.publicClient.estimateGas({
+      account: this.account,
+      data: deployData,
+    });
+
+    const cost = this.calculateOperationCost(estimatedGas, gasPrice);
+    logCostEstimate("Factory Deployment", cost, this.nativeCurrencySymbol);
+    return cost;
+  }
+
+  /**
+   * Estimates the gas cost of creating a new token pair on the PancakeFactory contract.
+   *
+   * @param {bigint} gasPrice - The current gas price used for the estimation.
+   * @return {Promise<CostEstimate>} The estimated cost of the operation, including gas fees.
+   */
+  private async estimateCreatePair(gasPrice: bigint): Promise<CostEstimate> {
+    const factoryContractPath = path.join(this.artifactPath, "PancakeFactory.sol/PancakeFactory.json");
+    const artifact = await fs.readFile(factoryContractPath, "utf-8");
+    const factoryContract = JSON.parse(artifact);
+
+    const estimatedGas = await this.publicClient.estimateContractGas({
+      account: this.account,
+      abi: factoryContract.abi,
+      address: this.config.factory,
+      functionName: 'createPair',
+      args: [this.config.newToken1.address, this.config.newToken2.address]
+    });
+
+    const cost = this.calculateOperationCost(estimatedGas, gasPrice);
+    logCostEstimate("Create Pair", cost, this.nativeCurrencySymbol);
+    return cost;
+  }
+
+  /**
+   * Estimates the cost of deploying the router contract.
+   *
+   * @param gasPrice The gas price in wei as a bigint.
+   * @return A promise that resolves to a CostEstimate object representing the estimated cost of deployment.
+   */
+  private async estimateRouterDeployment(gasPrice: bigint): Promise<CostEstimate> {
+    const routerContractPath = path.join(this.artifactPath, "PancakeRouter.sol/PancakeRouter.json");
+    const artifact = await fs.readFile(routerContractPath, "utf-8");
+    const routerContract = JSON.parse(artifact);
+
+    const deployData = encodeDeployData({
+      abi: routerContract.abi,
+      bytecode: routerContract.bytecode,
+      args: [this.config.factory, this.config.weth.address],
+    });
+
+    const estimatedGas = await this.publicClient.estimateGas({
+      account: this.account,
+      data: deployData,
+    });
+
+    const cost = this.calculateOperationCost(estimatedGas, gasPrice);
+    logCostEstimate("Router Deployment", cost, this.nativeCurrencySymbol);
+    return cost;
+  }
+
+  /**
+   * Executes the token approval process by interacting with the contract to allow the router
+   * to spend a specific amount of tokens. It calculates the gas cost for the transaction
+   * and logs the cost estimate for the operation.
+   *
+   * @return {Promise<CostEstimate>} The calculated cost estimate of the token approval transaction.
+   */
+  private async performTokenApproval(): Promise<CostEstimate> {
+    const amountIn = parseUnits('0.1', this.config.operationToken1.decimals);
+
+    const txHash = await this.client.writeContract({
+      address: this.config.operationToken1.address,
+      abi: erc20Abi,
+      functionName: 'approve',
+      args: [this.config.router, amountIn],
+      chain: this.config.chain,
+      account: this.account,
+    });
+
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash: txHash, confirmations: 1 });
+    const gasPrice = receipt.effectiveGasPrice as bigint;
+    const cost = this.calculateOperationCost(receipt.gasUsed, gasPrice);
+
+    logCostEstimate("Token Approval", cost, this.nativeCurrencySymbol);
+    return cost;
+  }
+
+  /**
+   * Estimates the gas cost required to execute a token swap using a decentralized exchange's router contract.
+   *
+   * @param gasPrice The price of gas in wei, represented as a bigint.
+   * @return A Promise that resolves to a `CostEstimate` object containing the estimated cost of the operation.
+   */
+  private async estimateTokenSwap(gasPrice: bigint): Promise<CostEstimate> {
+    const routerContractPath = path.join(this.artifactPath, "PancakeRouter.sol/PancakeRouter.json");
+    const artifact = await fs.readFile(routerContractPath, "utf-8");
+    const routerContract = JSON.parse(artifact);
+
+    const amountIn = parseUnits('0.1', this.config.operationToken1.decimals);
+    const amountOutMin = 0; // setting minimal out amount to 0 to fix an issue with fluctuating prices causing errors
+
+    const pathTokens = [this.config.operationToken1.address, this.config.operationToken2.address];
+    const deadline = Math.floor(Date.now() / 1000) + 60 * 10;
+
+    const estimatedGas = await this.publicClient.estimateContractGas({
+      account: this.account,
+      abi: routerContract.abi,
+      address: this.config.router,
+      functionName: 'swapExactTokensForTokens',
+      args: [amountIn, amountOutMin, pathTokens, this.publicKey, deadline]
+    });
+
+    const cost = this.calculateOperationCost(estimatedGas, gasPrice);
+    logCostEstimate("Token Swap", cost, this.nativeCurrencySymbol);
+    return cost;
+  }
+
+  /**
+   * Executes the token swap flow on the configured blockchain by estimating all the required operations,
+   * including gas price retrieval, factory deployment, token creation, router setup, token approval, and the swap itself.
+   * It logs a detailed cost breakdown in terms of gas usage, native token cost, and USD equivalent.
+   * Handles potential errors during the estimation process and logs appropriate error messages.
+   *
+   * @return {Promise<void>} A promise that resolves when the token swap estimation has been completed and logs the cost overview, or rejects if the process encounters an error.
+   */
+  async executeTokenSwapFlowTCO(): Promise<void> {
+    console.log(`🔍 Estimating swap operations on ${this.config.chain.name}...\n`);
+
+    const gasPrice = await this.publicClient.getGasPrice();
+    console.log(`Gas price: ${formatUnits(gasPrice, 9)} Gwei`); // this works fine as all the used chains have native tokens with 18 decimals
+    console.log(`USD per native token: $${this.nativeCurrencyUsdPrice.toFixed(2)}`);
+
+    try {
+      const factoryDeployment = await this.estimateFactoryDeployment(gasPrice);
+      const createPair = await this.estimateCreatePair(gasPrice);
+      const routerDeployment = await this.estimateRouterDeployment(gasPrice);
+      const tokenApproval = await this.performTokenApproval();
+      const tokenSwap = await this.estimateTokenSwap(gasPrice);
+
+      const totalGas = factoryDeployment.gasUsed +
+        createPair.gasUsed +
+        routerDeployment.gasUsed +
+        tokenApproval.gasUsed +
+        tokenSwap.gasUsed;
+
+      const totalWei = factoryDeployment.costInWei +
+        createPair.costInWei +
+        routerDeployment.costInWei +
+        tokenApproval.costInWei +
+        tokenSwap.costInWei;
+
+      const totalNativeCurrency = formatUnits(totalWei, this.config.chain.nativeCurrency.decimals);
+      const totalUSD = (parseFloat(totalNativeCurrency) * this.nativeCurrencyUsdPrice).toFixed(6);
+
+      console.log(`\n=== TOTAL COST OVERVIEW ===`);
+      console.log(`Total gas: ${totalGas.toString()}`);
+      console.log(`Total in ${this.nativeCurrencySymbol}: ${totalNativeCurrency}`);
+      console.log(`Total in USD: $${totalUSD}`);
+    } catch (err) {
+      console.error("❌ Estimation failed:", err);
+    }
+  }
+}
+
+export default EvmSwapTokensTCO;
